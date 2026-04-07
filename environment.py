@@ -124,5 +124,5 @@ class MedicalTriageEnv:
                 feedback = "Partial credit. Some elements correct."
             else:
                 feedback = "Needs improvement across all elements."
-
+        score = max(min(score, 0.99), 0.01)
         return Reward(score=score, feedback=feedback)
