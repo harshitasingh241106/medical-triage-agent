@@ -5,14 +5,14 @@ from environment import MedicalTriageEnv, Action
 
 load_dotenv()
 
-API_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME = os.getenv("MODEL_NAME")
-HF_TOKEN = os.getenv("HF_TOKEN")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN", "")
 
-if not all([API_BASE_URL, MODEL_NAME, HF_TOKEN]):
-    raise ValueError("Missing required environment variables. Check your .env file.")
+if not HF_TOKEN:
+    print("Warning: HF_TOKEN not set. API calls will fail but environment will still run.")
 
-client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN if HF_TOKEN else "dummy")
 
 def run_task(task_number: int, episodes: int = 3):
     print(f"\n{'='*50}")
