@@ -9,73 +9,92 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 
-if not HF_TOKEN:
-    print("Warning: HF_TOKEN not set. API calls will fail but environment will still run.")
-
 client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN if HF_TOKEN else "dummy")
 
-def run_task(task_number: int, episodes: int = 3):
-    print(f"\n{'='*50}")
-    labels = {
-        1: "Department Routing (Easy)",
-        2: "Department + Priority (Medium)",
-        3: "Full Triage (Hard)",
-        4: "Expert Triage Officer (Expert)"
-    }
-    print(f"TASK {task_number} — {labels[task_number]}")
-    print('='*50)
+MAX_STEPS = 1   # triage is single-step task
+SUCCESS_THRESHOLD = 0.5
+
+
+def log_start(task, env, model):
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step, action, reward, done, error=None):
+    error_val = error if error else "null"
+    print(
+        f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()} error={error_val}",
+        flush=True
+    )
+
+
+def log_end(success, steps, score, rewards):
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(
+        f"[END] success={str(success).lower()} steps={steps} score={score:.2f} rewards={rewards_str}",
+        flush=True
+    )
+
+
+def run_task(task_number: int):
+    TASK_NAME = f"triage-task-{task_number}"
+    BENCHMARK = "medical_triage"
 
     env = MedicalTriageEnv(task_number=task_number)
-    total_score = 0.0
 
-    for episode in range(episodes):
+    log_start(TASK_NAME, BENCHMARK, MODEL_NAME)
+
+    rewards = []
+    steps_taken = 0
+    score = 0.0
+    success = False
+
+    try:
         obs = env.reset()
-        print(f"\nEpisode {episode + 1}")
-        print(f"Patient: {obs.patient_text[:70]}...")
 
         try:
             completion = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[{"role": "user", "content": obs.prompt}],
-                max_tokens=300,
+                max_tokens=200,
                 temperature=0.1
             )
             agent_response = completion.choices[0].message.content or ""
         except Exception as e:
-            print(f"API call failed: {e}")
             agent_response = "General"
-
-        print(f"Agent response: {agent_response.strip()[:100]}")
+            error = str(e)
+        else:
+            error = None
 
         action = Action(response=agent_response)
-        obs, reward, done, info = env.step(action)
+        obs, reward_obj, done, info = env.step(action)
 
-        print(f"Score: {reward.score} | Feedback: {reward.feedback}")
-        total_score += reward.score
+        reward = float(reward_obj.score)
+        rewards.append(reward)
+        steps_taken = 1
 
-    avg_score = total_score / episodes
-    print(f"\nAverage score for Task {task_number}: {avg_score:.2f}")
-    return avg_score
+        log_step(
+            step=1,
+            action=agent_response.strip().replace("\n", " "),
+            reward=reward,
+            done=done,
+            error=error
+        )
+
+        score = reward  # already normalized [0,1]
+        success = score >= SUCCESS_THRESHOLD
+
+    finally:
+        try:
+            env.close()
+        except:
+            pass
+
+        log_end(success, steps_taken, score, rewards)
 
 
 def main():
-    print("Medical Triage Agent — Baseline Inference")
-    print("Model:", MODEL_NAME)
-    print("API:", API_BASE_URL)
-
-    scores = {}
-    scores["task1"] = run_task(task_number=1, episodes=3)
-    scores["task2"] = run_task(task_number=2, episodes=3)
-    scores["task3"] = run_task(task_number=3, episodes=3)
-    scores["task4"] = run_task(task_number=4, episodes=3)
-
-    print(f"\n{'='*50}")
-    print("FINAL BASELINE SCORES")
-    print('='*50)
-    for task, score in scores.items():
-        print(f"{task}: {score:.2f}")
-    overall = sum(scores.values()) / len(scores)
-    print(f"Overall average: {overall:.2f}")
+    for task in [1, 2, 3, 4]:
+        run_task(task)
 
 
 if __name__ == "__main__":
