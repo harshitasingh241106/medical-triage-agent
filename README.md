@@ -49,11 +49,14 @@ under pressure.
 
 Tested with `meta-llama/Llama-3.1-8B-Instruct` via Hugging Face router:
 
+| Task | Score |
+|------|-------|
 | Task 1 — Department Routing (Easy) | 0.99 |
 | Task 2 — Department + Priority (Medium) | 0.99 |
 | Task 3 — Full Triage (Hard) | ~0.6–0.7 |
 | Task 4 — Expert Triage Officer (Expert) | ~0.5–0.8 |
 | **Overall Average** | **~0.7–0.8** |
+
 
 > Note: Scores are clipped to the range (0, 1) to comply with evaluation requirements.
 
