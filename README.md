@@ -100,7 +100,7 @@ pip install -r requirements.txt
 uvicorn app:app --reload
 ```
 
-Visit http://localhost:7860/docs for the interactive API explorer.
+Visit http://localhost:8000/docs for the interactive API explorer.
 
 ## Running the Inference Script
 
